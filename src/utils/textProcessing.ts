@@ -1,4 +1,6 @@
 import { VisualizationSettings } from '../App';
+import CMU_STRESS_DICT_RAW from './stressDict.json';
+const CMU_STRESS_DICT = CMU_STRESS_DICT_RAW as unknown as Record<string, [number, number, number]>;
 
 export type ProcessedSyllable = {
   text: string;        // substring of original word (punctuation on first/last)
@@ -20,9 +22,12 @@ export type ProcessedWord = {
   linkingAfter?: 'consonant' | 'vowel';
 };
 
+// 'omit' = boundary is real but intonation is ambiguous (e.g. tag questions)
+export type IntonationMark = 'rising' | 'falling' | 'omit';
+
 export type ProcessedClause = {
   words: ProcessedWord[];
-  intonation: 'rising' | 'falling' | 'level';
+  intonation: IntonationMark;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -132,6 +137,22 @@ const VOICED_TH_WORDS = new Set([
  * The syllable texts concatenate to exactly reproduce the original word.
  */
 export function splitIntoSyllables(word: string): ProcessedSyllable[] {
+  // Hyphenated compounds (e.g. "vice-president", "decision-making"):
+  // split at each letter–hyphen–letter boundary and process each component
+  // independently, so stress is correctly identified per component.
+  if (/[a-zA-Z]-[a-zA-Z]/.test(word)) {
+    const result: ProcessedSyllable[] = [];
+    let start = 0;
+    for (let idx = 1; idx < word.length - 1; idx++) {
+      if (word[idx] === '-' && /[a-zA-Z]/.test(word[idx - 1]) && /[a-zA-Z]/.test(word[idx + 1])) {
+        result.push(...splitIntoSyllables(word.slice(start, idx + 1))); // include hyphen
+        start = idx + 1;
+      }
+    }
+    result.push(...splitIntoSyllables(word.slice(start)));
+    return result;
+  }
+
   // Separate leading/trailing punctuation from the alphabetic core
   const m = word.match(/^([^a-zA-Z']*)([a-zA-Z']+)([^a-zA-Z']*)$/);
   if (!m) return [{ text: word, isPrimaryStress: false }];
@@ -151,8 +172,17 @@ export function splitIntoSyllables(word: string): ProcessedSyllable[] {
     }
   }
 
-  // Treat trailing silent 'e' as not a separate nucleus (e.g. "make", "time")
+  // Treat trailing silent 'e' as not a separate nucleus (e.g. "make", "time").
+  // Exception: consonant + "le" endings form a syllabic 'l', not a silent 'e'
+  // (e.g. "middle", "table", "simple", "people" — the 'le' IS a syllable).
+  // Detect by checking that the char before 'l' is also a consonant.
+  const isSyllabicLE =
+    lc.endsWith('le') &&
+    lc.length >= 3 &&
+    !isVowel(lc[lc.length - 3]);
+
   if (
+    !isSyllabicLE &&
     nuclei.length > 1 &&
     lc[lc.length - 1] === 'e' &&
     lc.length >= 2 &&
@@ -161,10 +191,9 @@ export function splitIntoSyllables(word: string): ProcessedSyllable[] {
     nuclei.pop();
   }
 
-  // Monosyllabic — return as single syllable
+  // Monosyllabic — no stress marker needed (only 2+ syllable words are annotated)
   if (nuclei.length <= 1) {
-    const stressed = getStressIndex(lc, 1) === 0;
-    return [{ text: leadPunct + core + trailPunct, isPrimaryStress: stressed }];
+    return [{ text: leadPunct + core + trailPunct, isPrimaryStress: false }];
   }
 
   // Compute split points between nuclei using Maximum Onset Principle
@@ -217,32 +246,253 @@ export function splitIntoSyllables(word: string): ProcessedSyllable[] {
   }));
 }
 
-/** Return the 0-based index of the primary stressed syllable */
+/**
+ * Return the 0-based index of the primary stressed syllable.
+ *
+ * Lookup order:
+ *   1. CMU Pronouncing Dictionary (45K entries, primary + secondary stress)
+ *   2. Legacy bespoke STRESS_DICT (hand-curated ~150 entries)
+ *   3. Suffix rules (fallback for words not in either dictionary)
+ *
+ * Only called for words with ≥ 2 syllables.
+ */
 function getStressIndex(word: string, syllableCount: number): number {
   const clean = word.replace(/[^a-z]/g, '');
 
+  // 1. CMU dictionary — [syllableCount, primaryIdx, secondaryIdx]
+  const cmuEntry = CMU_STRESS_DICT[clean];
+  if (cmuEntry !== undefined) {
+    // primaryIdx is relative to vowel nuclei, not necessarily syllable boundaries,
+    // so clamp to the detected syllable count for safety
+    return Math.min(cmuEntry[1], syllableCount - 1);
+  }
+
+  // 2. Legacy hand-curated dictionary
   if (STRESS_DICT[clean] !== undefined) {
     return Math.min(STRESS_DICT[clean], syllableCount - 1);
   }
 
-  if (syllableCount <= 1) return 0;
-
-  // Suffix rules (order matters — check most specific first)
+  // 3. Suffix rules (order matters — most specific first)
   if (/tion$|sion$/.test(clean)) return Math.max(0, syllableCount - 2);
-  if (/ic$|ical$/.test(clean)) return Math.max(0, syllableCount - 2);
+  if (/ic$|ical$/.test(clean))   return Math.max(0, syllableCount - 2);
   if (/ity$|ify$|ology$|ography$/.test(clean)) return Math.max(0, syllableCount - 3);
   if (/ive$|ous$|ful$|less$|ness$|ment$/.test(clean)) return 0;
 
   return 0; // default: first syllable
 }
 
-// ─── Intonation ───────────────────────────────────────────────────────────────
+// ─── Intonation Annotation ────────────────────────────────────────────────────
+//
+// Design principle: falling (↘) is the English default.
+// Rising (↗) is assigned only when there is a clear linguistic trigger.
+// 'omit' marks boundaries where intonation cannot reliably be determined
+// from text alone (e.g. tag questions, whose intonation depends on whether
+// the speaker seeks confirmation or a genuine answer).
 
-export function getIntonation(clause: string): 'rising' | 'falling' | 'level' {
-  const t = clause.trim();
-  if (t.endsWith('?')) return 'rising';
-  if (t.endsWith('.') || t.endsWith('!')) return 'falling';
-  return 'level';
+// Preposed subordinating conjunctions: clauses beginning with these words
+// appear before the main clause and project continuation → rising
+const PREPOSED_SUB_CONJ = new Set([
+  'if', 'when', 'although', 'though', 'while', 'whilst', 'since',
+  'because', 'as', 'after', 'before', 'until', 'unless', 'whereas',
+  'wherever', 'whenever', 'provided', 'supposing', 'once', 'given',
+]);
+
+// Coordinating conjunctions (referenced for documentation; non-final clause
+// before these projects continuation → rising, covered by non-final rule)
+const _COORD_CONJ = new Set(['and', 'but', 'or', 'nor', 'yet', 'so']); // eslint-disable-line
+
+// Wh-words that begin wh-questions → falling (English default for wh-questions)
+const WH_WORDS = new Set([
+  'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom',
+]);
+
+// Auxiliary verbs that front-shift to open yes/no questions → rising
+const YES_NO_AUX = new Set([
+  'is', 'are', 'was', 'were', 'am',
+  'do', 'does', 'did',
+  'have', 'has', 'had',
+  'will', 'would', 'shall', 'should',
+  'can', 'could', 'may', 'might', 'must',
+]);
+
+type SentenceType = 'declarative' | 'wh-question' | 'yes-no-question' | 'imperative';
+
+/** Return the first alphabetic token of a string, lowercased */
+function getFirstWord(text: string): string {
+  const m = text.match(/[a-zA-Z]+(?:'[a-zA-Z]+)?/);
+  return m ? m[0].toLowerCase() : '';
+}
+
+/**
+ * Classify the overall sentence type.
+ * Imperatives are treated as declarative: neutral imperatives use falling intonation.
+ */
+function classifySentence(sentence: string): SentenceType {
+  const t = sentence.trim();
+  if (!t.endsWith('?')) return 'declarative';
+
+  const first = getFirstWord(t);
+  if (WH_WORDS.has(first)) return 'wh-question';
+  if (YES_NO_AUX.has(first)) return 'yes-no-question';
+
+  // Contracted negatives at the front also signal yes/no questions
+  // e.g. "Isn't this wonderful?" / "Can't we do better?"
+  if (/^(?:isn'?t|aren'?t|wasn'?t|weren'?t|don'?t|doesn'?t|didn'?t|haven'?t|hasn'?t|hadn'?t|won'?t|wouldn'?t|can'?t|couldn'?t|shouldn'?t|mustn'?t)\b/i.test(t)) {
+    return 'yes-no-question';
+  }
+
+  return 'declarative';
+}
+
+/**
+ * Detect whether a sentence ends with a tag question.
+ *
+ * Tag questions are ambiguous in written text: the intonation depends on
+ * whether the speaker wants confirmation (falling) or a genuine answer
+ * (rising). Since this cannot be reliably inferred, tag units are 'omit'.
+ *
+ * Pattern: ..., [aux or neg-contracted-aux] [pronoun]?
+ * e.g. "It's nice, isn't it?" / "You came, didn't you?" / "They'll help, won't they?"
+ */
+function detectTagQuestion(sentence: string): boolean {
+  return /,\s*(?:isn'?t|aren'?t|wasn'?t|weren'?t|don'?t|doesn'?t|didn'?t|haven'?t|hasn'?t|hadn'?t|won'?t|wouldn'?t|shan'?t|shouldn'?t|can'?t|couldn'?t|mustn'?t|is|are|was|were|do|does|did|have|has|had|will|would|shall|should|can|could|may|might|must)\s+(?:I|you|he|she|it|we|they|one)\s*\?$/i.test(sentence);
+}
+
+/**
+ * Split text into individual sentences.
+ * Splits on sentence-ending punctuation followed by whitespace + uppercase letter.
+ * Masks common abbreviation periods first to avoid false splits (e.g. "Dr. Smith").
+ */
+function splitIntoSentences(text: string): string[] {
+  const PLACEHOLDER = '\x01';
+  // Mask periods in known abbreviations
+  const safe = text.replace(/\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|approx|est)\./gi,
+    (m) => m.slice(0, -1) + PLACEHOLDER);
+
+  // Split at sentence boundary: [.!?] followed by whitespace + uppercase/quote
+  const parts = safe.split(/(?<=[.!?])\s+(?=[A-Z"'])/);
+
+  return parts
+    .map((p) => p.replace(new RegExp(PLACEHOLDER, 'g'), '.').trim())
+    .filter(Boolean);
+}
+
+/**
+ * Split a sentence into intonation units at clause/phrase boundaries.
+ *
+ * Strategy:
+ * 1. Split at every comma and semicolon (depth-aware: ignores commas inside
+ *    parentheses or brackets).
+ * 2. Merge leading fragments that contain fewer than 2 alphabetic words
+ *    forward into the next segment, preventing over-fragmentation of short
+ *    discourse markers like "However," or "Well,".
+ */
+function splitIntoUnits(sentence: string): string[] {
+  // Step 1: depth-aware raw split at , and ;
+  const rawParts: string[] = [];
+  let current = '';
+  let depth = 0;
+
+  for (const ch of sentence) {
+    if (ch === '(' || ch === '[') depth++;
+    else if (ch === ')' || ch === ']') depth--;
+    current += ch;
+    if (depth === 0 && (ch === ',' || ch === ';')) {
+      rawParts.push(current.trim());
+      current = '';
+    }
+  }
+  if (current.trim()) rawParts.push(current.trim());
+  if (rawParts.length === 0) return [sentence.trim()];
+
+  // Step 2: merge short leading fragments (< 2 alpha words) into the next segment
+  const units: string[] = [];
+  let buffer = '';
+
+  for (let i = 0; i < rawParts.length; i++) {
+    buffer = buffer ? buffer + ' ' + rawParts[i] : rawParts[i];
+    const wordCount = (buffer.match(/[a-zA-Z]+/g) ?? []).length;
+    const isLast = i === rawParts.length - 1;
+
+    if (wordCount >= 2 || isLast) {
+      units.push(buffer.trim());
+      buffer = '';
+    }
+    // else: fragment too short — keep accumulating
+  }
+
+  if (buffer.trim()) units.push(buffer.trim());
+  return units.length > 0 ? units : [sentence.trim()];
+}
+
+/**
+ * Assign an intonation mark to each unit within a sentence.
+ *
+ * Rules (falling is the default):
+ *
+ *   Tag question unit                 → 'omit'    (ambiguous speaker intent)
+ *   Final unit + yes/no question      → 'rising'   (whole-sentence rising)
+ *   Final unit (all other types)      → 'falling'  (statements, wh-questions,
+ *                                                   imperatives)
+ *   Non-final unit                    → 'rising'   (projects continuation)
+ *
+ * The non-final rule covers in one step:
+ *   • initial subordinate clauses (If…, When…, Although…)
+ *   • non-final items in lists
+ *   • non-final coordinated clauses (…and / …but / …or)
+ *   • non-final options in alternative questions
+ */
+function assignMarks(
+  units: string[],
+  sentType: SentenceType,
+  isTagQ: boolean,
+): IntonationMark[] {
+  const marks: IntonationMark[] = [];
+
+  // Index of the effective final unit (last non-tag unit)
+  const finalIdx = isTagQ ? units.length - 2 : units.length - 1;
+  const tagIdx   = isTagQ ? units.length - 1 : -1;
+
+  for (let i = 0; i < units.length; i++) {
+    if (i === tagIdx) {
+      // Tag question: intonation is ambiguous — do not annotate
+      marks.push('omit');
+    } else if (i === finalIdx) {
+      // Final unit: yes/no questions rise; everything else falls
+      marks.push(sentType === 'yes-no-question' ? 'rising' : 'falling');
+    } else {
+      // Non-final unit: projects continuation → rising
+      marks.push('rising');
+    }
+  }
+
+  return marks;
+}
+
+/**
+ * Main annotation entry point.
+ * Returns a flat list of { text, intonation } units spanning the whole input.
+ *
+ * Pipeline: text → sentences → units per sentence → intonation marks
+ */
+export function annotateIntonation(
+  text: string,
+): Array<{ text: string; intonation: IntonationMark }> {
+  const sentences = splitIntoSentences(text);
+  const result: Array<{ text: string; intonation: IntonationMark }> = [];
+
+  for (const sentence of sentences) {
+    const sentType = classifySentence(sentence);
+    const isTagQ   = detectTagQuestion(sentence);
+    const units    = splitIntoUnits(sentence);
+    const marks    = assignMarks(units, sentType, isTagQ);
+
+    for (let i = 0; i < units.length; i++) {
+      result.push({ text: units[i], intonation: marks[i] });
+    }
+  }
+
+  return result;
 }
 
 // ─── Sentence stress ──────────────────────────────────────────────────────────
@@ -333,27 +583,15 @@ export function getLinkingType(word: string, nextWord?: string): 'consonant' | '
   return undefined;
 }
 
-// ─── Clause splitting ─────────────────────────────────────────────────────────
-
-export function splitIntoClauses(text: string): string[] {
-  const parts: string[] = [];
-  // Match runs of non-terminal punctuation then optional terminal punctuation
-  const re = /[^.!?;,]+[.!?;,]*/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const clause = match[0].trim();
-    if (clause) parts.push(clause);
-  }
-  return parts.length > 0 ? parts : [text.trim()];
-}
-
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 export function processText(text: string, visualizations: VisualizationSettings): ProcessedClause[] {
-  const clauses = splitIntoClauses(text);
+  // annotateIntonation handles sentence splitting and clause boundary detection;
+  // intonation is always computed — the display layer decides whether to show it.
+  const annotatedUnits = annotateIntonation(text);
 
-  return clauses.map((clauseText) => {
-    const words = clauseText.split(/\s+/).filter((w) => w.length > 0);
+  return annotatedUnits.map(({ text: unitText, intonation }) => {
+    const words = unitText.split(/\s+/).filter((w) => w.length > 0);
 
     const processedWords: ProcessedWord[] = words.map((word, index) => {
       const nextWord = index < words.length - 1 ? words[index + 1] : undefined;
@@ -372,9 +610,6 @@ export function processText(text: string, visualizations: VisualizationSettings)
       };
     });
 
-    return {
-      words: processedWords,
-      intonation: visualizations.intonation ? getIntonation(clauseText) : 'level',
-    };
+    return { words: processedWords, intonation };
   });
 }

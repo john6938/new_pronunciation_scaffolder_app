@@ -78,9 +78,7 @@ export default function App() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-7">
-          <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shrink-0">
-            PS
-          </div>
+          <img src={`${import.meta.env.BASE_URL}jb_logo_small.jpg`} alt="Pronunciation Scaffolder logo" className="w-11 h-11 shrink-0" />
           <div>
             <h1 className="text-2xl font-bold leading-tight">Pronunciation Scaffolder</h1>
             <p className="text-sm text-gray-500">Visualise how to read your script aloud</p>

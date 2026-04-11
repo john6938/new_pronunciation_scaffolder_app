@@ -1,5 +1,5 @@
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { VisualizationSettings } from '../App';
-import { ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 
 type Props = {
   visualizations: VisualizationSettings;
@@ -18,13 +18,12 @@ const OPTIONS: Option[] = [
   {
     key: 'intonation',
     label: 'Intonation',
-    description: 'Arrows showing pitch direction at clause boundaries',
+    description: 'Diagonal arrows showing pitch direction at clause boundaries',
     isDefault: true,
     example: (
-      <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
-        <span className="flex items-center gap-1"><ArrowUp size={13} className="text-blue-600" /> Rising</span>
-        <span className="flex items-center gap-1"><ArrowDown size={13} className="text-blue-600" /> Falling</span>
-        <span className="flex items-center gap-1"><ArrowRight size={13} className="text-blue-600" /> Level</span>
+      <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+        <span className="flex items-center gap-1"><span className="bg-blue-600 text-white rounded inline-flex items-center justify-center" style={{ width: 16, height: 16 }}><TrendingUp size={11} strokeWidth={2.5} /></span> Rising</span>
+        <span className="flex items-center gap-1"><span className="bg-blue-600 text-white rounded inline-flex items-center justify-center" style={{ width: 16, height: 16 }}><TrendingDown size={11} strokeWidth={2.5} /></span> Falling</span>
       </div>
     ),
   },

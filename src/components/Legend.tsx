@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HelpCircle, X, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { HelpCircle, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { VisualizationSettings } from '../App';
 
 type Props = { visualizations: VisualizationSettings };
@@ -36,9 +36,18 @@ export function Legend({ visualizations }: Props) {
           <div>
             <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Intonation</h4>
             <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-2"><ArrowUp size={14} className="text-blue-600" /><span>Rising — questions</span></div>
-              <div className="flex items-center gap-2"><ArrowDown size={14} className="text-blue-600" /><span>Falling — statements</span></div>
-              <div className="flex items-center gap-2"><ArrowRight size={14} className="text-blue-600" /><span>Level — continuing clause</span></div>
+              <div className="flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><TrendingUp size={13} strokeWidth={2.5} /></span>
+                <span>Rising — yes/no questions, non-final clauses &amp; list items</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><TrendingDown size={13} strokeWidth={2.5} /></span>
+                <span>Falling — statements, wh-questions, final clauses</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-400">
+                <span className="text-base leading-none">—</span>
+                <span>No mark — tag questions (ambiguous intent)</span>
+              </div>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { VisualizationSettings } from '../App';
-import { processText, ProcessedClause, ProcessedWord } from '../utils/textProcessing';
+import { processText, ProcessedClause, ProcessedWord, IntonationMark } from '../utils/textProcessing';
 
 type Props = {
   text: string;
@@ -42,11 +42,19 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
     return () => clearInterval(id);
   }, [isScrolling, scrollSpeed]);
 
-  const IntonationArrow = ({ type }: { type: 'rising' | 'falling' | 'level' }) => {
-    const Icon = type === 'rising' ? ArrowUp : type === 'falling' ? ArrowDown : ArrowRight;
+  // Lucide icons render identically on all platforms — no Unicode emoji variation.
+  // Both arrows appear as white icons inside a blue rounded box.
+  const IntonationArrow = ({ type }: { type: IntonationMark }) => {
+    if (type === 'omit') return null;
+    const iconSize = Math.round(fontSize * 0.6);
+    const Icon = type === 'rising' ? TrendingUp : TrendingDown;
     return (
-      <span className="inline-flex items-center ml-0.5 text-blue-600" style={{ verticalAlign: 'middle' }}>
-        <Icon size={Math.round(fontSize * 0.65)} />
+      <span
+        className="bg-blue-600 text-white rounded select-none inline-flex items-center justify-center"
+        style={{ width: iconSize + 6, height: iconSize + 6, verticalAlign: 'middle', marginLeft: '0.15em', flexShrink: 0 }}
+        aria-label={type === 'rising' ? 'rising intonation' : 'falling intonation'}
+      >
+        <Icon size={iconSize} strokeWidth={2.5} />
       </span>
     );
   };
