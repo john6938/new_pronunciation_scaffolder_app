@@ -11,7 +11,6 @@ type Option = {
   label: string;
   description: string;
   example: React.ReactNode;
-  isDefault?: boolean;
 };
 
 const OPTIONS: Option[] = [
@@ -19,7 +18,6 @@ const OPTIONS: Option[] = [
     key: 'intonation',
     label: 'Intonation',
     description: 'Diagonal arrows showing pitch direction at clause boundaries',
-    isDefault: true,
     example: (
       <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
         <span className="flex items-center gap-1"><span className="bg-blue-600 text-white rounded inline-flex items-center justify-center" style={{ width: 16, height: 16 }}><TrendingUp size={11} strokeWidth={2.5} /></span> Rising</span>
@@ -31,7 +29,6 @@ const OPTIONS: Option[] = [
     key: 'sentenceStress',
     label: 'Sentence Stress',
     description: 'Content words shown in bold red',
-    isDefault: true,
     example: (
       <div className="mt-2 text-xs">
         Today I will <span className="font-bold text-red-600">talk</span> about <span className="font-bold text-red-600">effective</span> <span className="font-bold text-red-600">communication</span>.
@@ -42,7 +39,6 @@ const OPTIONS: Option[] = [
     key: 'wordStress',
     label: 'Word Stress',
     description: 'Primary stressed syllable in bold with yellow background',
-    isDefault: true,
     example: (
       <div className="mt-2 text-xs">
         pre·<span className="font-bold bg-yellow-300 px-0.5 rounded-sm">sen</span>·ta·tion &nbsp;
@@ -98,7 +94,6 @@ export function VisualizationOptions({ visualizations, setVisualizations }: Prop
     <section>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-semibold text-gray-700">Visualisation Options</h2>
-        <span className="text-xs text-gray-400">Defaults: first three on</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {OPTIONS.map((opt) => (
@@ -117,11 +112,8 @@ export function VisualizationOptions({ visualizations, setVisualizations }: Prop
               className="mt-0.5 w-4 h-4 accent-blue-500 shrink-0"
             />
             <div>
-              <div className="text-sm font-medium text-gray-800 flex items-center gap-2">
+              <div className="text-sm font-medium text-gray-800">
                 {opt.label}
-                {opt.isDefault && (
-                  <span className="text-xs text-blue-500 font-normal">default</span>
-                )}
               </div>
               <div className="text-xs text-gray-500 mt-0.5">{opt.description}</div>
               {opt.example}
