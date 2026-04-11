@@ -596,6 +596,25 @@ export function isSentenceStressed(word: string): boolean {
 
 // ─── Complex sounds ───────────────────────────────────────────────────────────
 
+// Fallback blocklist for -s detection when no POS data is available.
+// Only needed when compromise hasn't been run (e.g. soundsS disabled then re-enabled mid-render).
+const SKIP_S_FALLBACK = new Set([
+  'this', 'was', 'has', 'is', 'his', 'its', 'plus', 'thus',
+  'us', 'bus', 'yes', 'news', 'less', 'class', 'dress', 'miss',
+]);
+
+/**
+ * Verify that the difference between an inflected word and its lemma is
+ * exactly an -s/-es/-ies suffix — confirming it is a genuine -s inflection.
+ */
+function isLemmaSInflection(word: string, lemma: string): boolean {
+  return (
+    word === lemma + 's' ||
+    word === lemma + 'es' ||
+    (lemma.endsWith('y') && word === lemma.slice(0, -1) + 'ies')
+  );
+}
+
 // Lexical -ed adjectives that are NOT past-tense verbs.
 // Each entry maps the bare lowercase form to its fixed -ed pronunciation.
 // 'special' = /ɪd/ (extra syllable), 'voiced' = /d/, 'unvoiced' = /t/
@@ -638,6 +657,7 @@ export function findComplexSounds(
   enableS: boolean,
   enableEd: boolean,
   pastTenseWords?: Set<string>,
+  inflectedSWords?: Map<string, string>,
 ): ComplexSound[] {
   const sounds: ComplexSound[] = [];
   const lower = word.toLowerCase();
@@ -680,24 +700,48 @@ export function findComplexSounds(
     }
   }
 
-  // -s endings (plurals and 3rd-person singular)
-  // Use alpha for candidate detection to handle trailing punctuation (e.g. "plays,").
+  // -s endings: plural nouns and 3sg present-tense verbs.
+  //
+  // Gate: inflectedSWords (built in processText via compromise POS + lemma comparison)
+  // confirms the word is a genuine inflection. When unavailable, fall back to a
+  // morphological heuristic with a minimal blocklist.
+  //
+  // Phonological stem: use the lemma stored in inflectedSWords (most accurate) or
+  // derive it from the suffix pattern (fallback). Using the real lemma matters for
+  // -es words where naive stripping gives the wrong final sound (e.g. "watches"
+  // stripped to "watche" would be misclassified; "watch" is correct).
   const sPos = lower.lastIndexOf('s');
-  const skipS = new Set([
-    'this', 'was', 'has', 'is', 'his', 'its', 'plus', 'thus',
-    'us', 'bus', 'yes', 'news', 'less', 'class', 'dress', 'miss',
-  ]);
-  if (enableS && alpha.endsWith('s') && !alpha.endsWith('ss') && alpha.length > 2 && !skipS.has(alpha) && sPos !== -1) {
-    const stem = alpha.slice(0, -1);
-    let soundType: ComplexSound['soundType'];
-    if (/[sxz]$/.test(stem) || stem.endsWith('sh') || stem.endsWith('ch') || stem.endsWith('ge') || stem.endsWith('ce')) {
-      soundType = 'special'; // /ɪz/
-    } else if (/[ptkf]$/.test(stem) || stem.endsWith('th')) {
-      soundType = 'unvoiced'; // /s/
-    } else {
-      soundType = 'voiced'; // /z/
+  if (enableS && alpha.endsWith('s') && alpha.length > 2 && sPos !== -1) {
+    const isInflected = inflectedSWords
+      ? inflectedSWords.has(alpha)
+      : (!alpha.endsWith('ss') && !SKIP_S_FALLBACK.has(alpha));
+
+    if (isInflected) {
+      const lemma = inflectedSWords?.get(alpha);
+      let stem: string;
+      if (lemma) {
+        stem = lemma; // real base form from compromise
+      } else if (alpha.endsWith('ies')) {
+        stem = alpha.slice(0, -3) + 'y'; // carries → carry
+      } else if (alpha.endsWith('es')) {
+        stem = alpha.slice(0, -2);       // watches → watch, buzzes → buzz
+      } else {
+        stem = alpha.slice(0, -1);       // plays → play
+      }
+
+      let soundType: ComplexSound['soundType'];
+      // Sibilant stems (/s z ʃ ʒ tʃ dʒ/) → /ɪz/
+      if (/[sxz]$/.test(stem) || stem.endsWith('sh') || stem.endsWith('ch') || stem.endsWith('ge') || stem.endsWith('ce')) {
+        soundType = 'special';
+      // Voiceless non-sibilant stems → /s/
+      } else if (/[ptkf]$/.test(stem) || stem.endsWith('th')) {
+        soundType = 'unvoiced';
+      // Voiced stems (inc. vowels) → /z/
+      } else {
+        soundType = 'voiced';
+      }
+      sounds.push({ type: 's', soundType, start: sPos, end: sPos + 1 });
     }
-    sounds.push({ type: 's', soundType, start: sPos, end: sPos + 1 });
   }
 
   return sounds;
@@ -757,6 +801,37 @@ export function processText(text: string, visualizations: VisualizationSettings)
     pastTenseWords = new Set(tagged.map((w) => w.toLowerCase().replace(/[^a-z]/g, '')));
   }
 
+  // Build a map of confirmed inflected -s words: surface form → base lemma.
+  // Uses compromise POS tags (#Plural, #PresentTense) as the primary gate, then
+  // verifies structurally that word − lemma = s/es/ies (the user's lemma-comparison approach).
+  // The lemma is stored so findComplexSounds can use it as the phonological stem directly,
+  // avoiding misclassification from naively stripping -es (e.g. "watches"→"watche").
+  let inflectedSWords: Map<string, string> | undefined;
+  if (visualizations.soundsS) {
+    inflectedSWords = new Map<string, string>();
+    const doc = nlp(text);
+
+    // Plural nouns
+    for (const w of (doc.match('#Plural').out('array') as string[])) {
+      const surface = w.toLowerCase().replace(/[^a-z]/g, '');
+      if (!surface.endsWith('s')) continue;
+      const singular = nlp(surface).nouns().toSingular().out('text').toLowerCase().replace(/[^a-z]/g, '');
+      if (singular && singular !== surface && isLemmaSInflection(surface, singular)) {
+        inflectedSWords.set(surface, singular);
+      }
+    }
+
+    // 3rd-person singular present-tense verbs
+    for (const w of (doc.match('#PresentTense').out('array') as string[])) {
+      const surface = w.toLowerCase().replace(/[^a-z]/g, '');
+      if (!surface.endsWith('s') || inflectedSWords.has(surface)) continue;
+      const infinitive = nlp(surface).verbs().toInfinitive().out('text').toLowerCase().replace(/[^a-z]/g, '');
+      if (infinitive && infinitive !== surface && isLemmaSInflection(surface, infinitive)) {
+        inflectedSWords.set(surface, infinitive);
+      }
+    }
+  }
+
   // When pausing is enabled, use the pause-based segmentation.
   // Otherwise use the intonation-based segmentation.
   type Unit = { text: string; intonation: IntonationMark; pauseAfter?: PauseMarker };
@@ -785,7 +860,7 @@ export function processText(text: string, visualizations: VisualizationSettings)
           ? splitIntoSyllables(word)
           : [{ text: word, isPrimaryStress: false }],
         isSentenceStressed: visualizations.sentenceStress ? isSentenceStressed(word) : false,
-        complexSounds: findComplexSounds(word, visualizations.soundsTh, visualizations.soundsS, visualizations.soundsEd, pastTenseWords),
+        complexSounds: findComplexSounds(word, visualizations.soundsTh, visualizations.soundsS, visualizations.soundsEd, pastTenseWords, inflectedSWords),
         linkingAfter:
           index < words.length - 1 && visualizations.linking
             ? getLinkingType(word, nextWord)

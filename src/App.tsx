@@ -87,7 +87,7 @@ export default function App() {
           <img src={`${import.meta.env.BASE_URL}jb_logo_small.jpg`} alt="Pronunciation Scaffolder logo" className="w-11 h-11 shrink-0" />
           <div>
             <h1 className="text-2xl font-bold leading-tight">Pronunciation Scaffolder</h1>
-            <p className="text-sm text-gray-500">Visualizing how to read your script aloud</p>
+            <p className="text-sm text-gray-500">Visualizing reading aloud</p>
           </div>
         </div>
 
@@ -148,9 +148,8 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-gray-100 text-center text-xs text-gray-400 space-y-0.5">
-          <p>John Blake &mdash; Aston University</p>
-          <p>Version 4.0 &mdash; 11 April 2026</p>
+        <div className="mt-8 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
+          <p>John Blake, Aston University. Version 4.0 updated 11 April 2026.</p>
         </div>
       </div>
     </div>
