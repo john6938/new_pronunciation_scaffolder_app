@@ -121,11 +121,15 @@ export function Legend({ visualizations }: Props) {
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-2">
                 <span className="border-b-4 border-blue-500 px-1">word</span>
-                <span>Consonant → vowel linking</span>
+                <span>Connect — final consonant links to next vowel</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="border-b-4 border-green-500 px-1">word</span>
-                <span>Vowel → vowel linking</span>
+                <span>Insertion — glide added between two vowels</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="border-b-4 border-black px-1">word</span>
+                <span>Deletion — /t/ or /d/ dropped before consonant</span>
               </div>
             </div>
           </div>

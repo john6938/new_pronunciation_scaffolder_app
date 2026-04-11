@@ -22,7 +22,7 @@ export type ProcessedWord = {
   syllables: ProcessedSyllable[]; // concatenate to get original
   isSentenceStressed: boolean;
   complexSounds: ComplexSound[];
-  linkingAfter?: 'consonant' | 'vowel';
+  linkingAfter?: 'connect' | 'insertion' | 'deletion';
 };
 
 // 'omit' = boundary is real but intonation is ambiguous (e.g. tag questions)
@@ -750,12 +750,24 @@ export function findComplexSounds(
 // ─── Linking ──────────────────────────────────────────────────────────────────
 
 /**
- * Linking only occurs at meaningful phonetic boundaries:
- * - Consonant → Vowel: most common (e.g. "pick it up")
- * - Vowel → Vowel: intrusive linking (e.g. "go out")
+ * Classify the phonological linking relationship between two adjacent words.
+ *
+ * Three categories (spec-aligned):
+ *   'connect'   — Resyllabification: final consonant becomes onset of next vowel-initial word
+ *                  e.g. "pick it up", "turn off"
+ *   'insertion' — Sound appears: glide inserted between vowel-final and vowel-initial words
+ *                  e.g. "go away" (/w/), "free entry" (/j/), "the idea of" (/r/)
+ *   'deletion'  — Sound disappears: /t/ or /d/ elided before a consonant-initial word
+ *                  e.g. "last night", "next week", "old man"
+ *
+ * Boundary blocking: trailing strong-boundary punctuation (.!?;:) on the current word
+ * signals a prosodic break — no linking is permitted across it.
  */
-export function getLinkingType(word: string, nextWord?: string): 'consonant' | 'vowel' | undefined {
+export function getLinkingType(word: string, nextWord?: string): 'connect' | 'insertion' | 'deletion' | undefined {
   if (!nextWord) return undefined;
+
+  // Prosodic boundary guard: strong punctuation blocks all linking
+  if (/[.!?;:]$/.test(word.trim())) return undefined;
 
   const curAlpha = word.replace(/[^a-zA-Z]/g, '');
   const nextAlpha = nextWord.replace(/[^a-zA-Z]/g, '');
@@ -764,12 +776,24 @@ export function getLinkingType(word: string, nextWord?: string): 'consonant' | '
   const lastChar = curAlpha[curAlpha.length - 1].toLowerCase();
   const firstNextChar = nextAlpha[0].toLowerCase();
 
+  // Elision: word-final /t/ or /d/ before a consonant-initial word
+  // Articulatory economy causes the alveolar plosive to be absorbed.
+  if (/[td]$/.test(curAlpha.toLowerCase()) && !isVowel(firstNextChar) && isAlpha(firstNextChar)) {
+    return 'deletion';
+  }
+
+  // Connect (resyllabification): consonant-final + vowel-initial
+  // The final consonant reattaches as the onset of the next syllable.
   if (!isVowel(lastChar) && isAlpha(lastChar) && isVowel(firstNextChar)) {
-    return 'consonant'; // consonant-to-vowel linking
+    return 'connect';
   }
+
+  // Insertion: vowel-final + vowel-initial
+  // A glide (/j/, /w/) or intrusive /r/ is inserted to resolve vowel hiatus.
   if (isVowel(lastChar) && isVowel(firstNextChar)) {
-    return 'vowel'; // vowel-to-vowel linking
+    return 'insertion';
   }
+
   return undefined;
 }
 

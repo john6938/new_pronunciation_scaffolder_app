@@ -18,8 +18,9 @@ const COMPLEX_SOUND_COLORS: Record<string, string> = {
 };
 
 const LINKING_COLORS: Record<string, string> = {
-  consonant: 'border-blue-500',
-  vowel: 'border-green-500',
+  connect: 'border-blue-500',
+  insertion: 'border-green-500',
+  deletion: 'border-black',
 };
 
 export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScrolling }: Props) {
@@ -82,11 +83,14 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
    * can compute absolute character offsets for complex sound highlighting.
    * This handles word stress + complex sounds simultaneously.
    */
-  const renderWord = (word: ProcessedWord, wIdx: number, cIdx: number) => {
+  /**
+   * linkingBefore: the linkingAfter value of the preceding word, used to underline
+   * only the first alpha character of this word (the visual bridge from the previous word).
+   */
+  const renderWord = (word: ProcessedWord, wIdx: number, cIdx: number, linkingBefore?: string) => {
     const wrapClass = [
       'inline',
       word.isSentenceStressed ? 'font-bold text-red-600' : '',
-      word.linkingAfter ? `border-b-4 ${LINKING_COLORS[word.linkingAfter]}` : '',
     ].filter(Boolean).join(' ');
 
     // Precompute start offset of each syllable within the original word string
@@ -94,6 +98,17 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
       acc.push(i === 0 ? 0 : acc[i - 1] + word.syllables[i - 1].text.length);
       return acc;
     }, []);
+
+    // Find absolute index of the last alpha char in the full word (for linkingAfter)
+    const fullText = word.syllables.map((s) => s.text).join('');
+    let lastAlphaAbs = -1;
+    for (let i = fullText.length - 1; i >= 0; i--) {
+      if (/[a-zA-Z]/.test(fullText[i])) { lastAlphaAbs = i; break; }
+    }
+    let firstAlphaAbs = -1;
+    for (let i = 0; i < fullText.length; i++) {
+      if (/[a-zA-Z]/.test(fullText[i])) { firstAlphaAbs = i; break; }
+    }
 
     return (
       <span key={`${cIdx}-${wIdx}`} className={wrapClass}>
@@ -103,8 +118,13 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
             ? 'font-bold bg-yellow-300 rounded-sm'
             : '';
 
-          // Character-level rendering for complex sounds
-          if ((visualizations.soundsTh || visualizations.soundsS || visualizations.soundsEd) && word.complexSounds.length > 0) {
+          // Character-level rendering (complex sounds or linking borders needed)
+          const needsCharLevel =
+            ((visualizations.soundsTh || visualizations.soundsS || visualizations.soundsEd) && word.complexSounds.length > 0) ||
+            word.linkingAfter != null ||
+            linkingBefore != null;
+
+          if (needsCharLevel) {
             return (
               <span key={sIdx} className={sylClass}>
                 {syl.text.split('').map((ch, chIdx) => {
@@ -112,11 +132,18 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
                   const cs = word.complexSounds.find(
                     (s) => absIdx >= s.start && absIdx < s.end
                   );
-                  return (
-                    <span key={chIdx} className={cs ? COMPLEX_SOUND_COLORS[cs.soundType] : ''}>
-                      {ch}
-                    </span>
-                  );
+
+                  // Linking border: last alpha char of word (linkingAfter) or first alpha char (linkingBefore)
+                  let linkType: string | undefined;
+                  if (word.linkingAfter && absIdx === lastAlphaAbs) linkType = word.linkingAfter;
+                  else if (linkingBefore && absIdx === firstAlphaAbs) linkType = linkingBefore;
+
+                  const classes = [
+                    cs ? COMPLEX_SOUND_COLORS[cs.soundType] : '',
+                    linkType ? `border-b-4 ${LINKING_COLORS[linkType]}` : '',
+                  ].filter(Boolean).join(' ');
+
+                  return <span key={chIdx} className={classes || undefined}>{ch}</span>;
                 })}
               </span>
             );
@@ -137,12 +164,19 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
       <div className="max-w-4xl mx-auto">
         {clauses.map((clause, cIdx) => (
           <span key={cIdx} className="inline">
-            {clause.words.map((word, wIdx) => (
-              <span key={`${cIdx}-${wIdx}`}>
-                {renderWord(word, wIdx, cIdx)}
-                {wIdx < clause.words.length - 1 && ' '}
-              </span>
-            ))}
+            {clause.words.map((word, wIdx) => {
+              const prevLinkType = wIdx > 0 ? clause.words[wIdx - 1].linkingAfter : undefined;
+              return (
+                <span key={`${cIdx}-${wIdx}`}>
+                  {renderWord(word, wIdx, cIdx, prevLinkType)}
+                  {wIdx < clause.words.length - 1 && (
+                    word.linkingAfter
+                      ? <span className={`border-b-4 ${LINKING_COLORS[word.linkingAfter]}`}>{' '}</span>
+                      : ' '
+                  )}
+                </span>
+              );
+            })}
             {visualizations.pausing && clause.pauseAfter && <PauseDisplay marker={clause.pauseAfter} />}
             {visualizations.intonation && <IntonationArrow type={clause.intonation} />}
             {' '}

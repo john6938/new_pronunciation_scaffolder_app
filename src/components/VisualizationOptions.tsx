@@ -86,9 +86,10 @@ const OPTIONS: Option[] = [
     label: 'Linking',
     description: 'Underlines where words link phonetically',
     example: (
-      <div className="mt-2 text-xs flex gap-4">
-        <span className="border-b-4 border-blue-500">consonant→vowel</span>
-        <span className="border-b-4 border-green-500">vowel→vowel</span>
+      <div className="mt-2 text-xs flex gap-3 flex-wrap">
+        <span className="border-b-4 border-blue-500">connect</span>
+        <span className="border-b-4 border-green-500">insertion</span>
+        <span className="border-b-4 border-black">deletion</span>
       </div>
     ),
   },
