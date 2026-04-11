@@ -11,6 +11,7 @@ export type VisualizationSettings = {
   wordStress: boolean;
   complexSounds: boolean;
   linking: boolean;
+  pausing: boolean;
 };
 
 const SAMPLE_TEXT = `Good morning everyone. Today, I'm going to talk about the importance of effective communication in the workplace. Communication is the foundation of success in any organization. When we communicate clearly, we build trust and understanding. This helps teams work together more efficiently and achieve their goals. Remember, listening is just as important as speaking. Thank you for your attention.`;
@@ -27,6 +28,7 @@ export default function App() {
     wordStress: true,
     complexSounds: false,
     linking: false,
+    pausing: false,
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

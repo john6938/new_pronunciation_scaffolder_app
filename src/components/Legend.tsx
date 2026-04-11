@@ -103,6 +103,17 @@ export function Legend({ visualizations }: Props) {
           </div>
         )}
 
+        {visualizations.pausing && (
+          <div>
+            <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Pausing</h4>
+            <div className="space-y-1 text-xs font-mono">
+              <div className="flex items-center gap-2"><span className="text-gray-400">/</span><span className="font-sans">Minor pause — within clause</span></div>
+              <div className="flex items-center gap-2"><span className="text-gray-500">//</span><span className="font-sans">Major pause — clause boundary</span></div>
+              <div className="flex items-center gap-2"><span className="text-gray-700">///</span><span className="font-sans">Utterance boundary — sentence end</span></div>
+            </div>
+          </div>
+        )}
+
         {visualizations.linking && (
           <div>
             <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Linking</h4>

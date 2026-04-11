@@ -1,4 +1,6 @@
 import { VisualizationSettings } from '../App';
+import { PauseMarker, segmentWithPauses } from './pauseAnnotation';
+export type { PauseMarker };
 import CMU_STRESS_DICT_RAW from './stressDict.json';
 const CMU_STRESS_DICT = CMU_STRESS_DICT_RAW as unknown as Record<string, [number, number, number]>;
 
@@ -28,6 +30,7 @@ export type IntonationMark = 'rising' | 'falling' | 'omit';
 export type ProcessedClause = {
   words: ProcessedWord[];
   intonation: IntonationMark;
+  pauseAfter?: PauseMarker;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -585,12 +588,39 @@ export function getLinkingType(word: string, nextWord?: string): 'consonant' | '
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
-export function processText(text: string, visualizations: VisualizationSettings): ProcessedClause[] {
-  // annotateIntonation handles sentence splitting and clause boundary detection;
-  // intonation is always computed — the display layer decides whether to show it.
-  const annotatedUnits = annotateIntonation(text);
+// Derive a simple intonation mark from a pause segment's context.
+// Used when pausing is the active segmentation driver.
+function intonationFromPause(segText: string, pauseAfter: PauseMarker | undefined): IntonationMark {
+  if (pauseAfter === '///' || pauseAfter === undefined) {
+    const trimmed = segText.trim();
+    if (trimmed.endsWith('?')) {
+      const first = trimmed.match(/[a-zA-Z]+/)?.[0]?.toLowerCase() ?? '';
+      const WH = new Set(['who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom']);
+      return WH.has(first) ? 'falling' : 'rising';
+    }
+    return 'falling';
+  }
+  return 'rising'; // non-final unit → continuation
+}
 
-  return annotatedUnits.map(({ text: unitText, intonation }) => {
+export function processText(text: string, visualizations: VisualizationSettings): ProcessedClause[] {
+  // When pausing is enabled, use the pause-based segmentation.
+  // Otherwise use the intonation-based segmentation.
+  type Unit = { text: string; intonation: IntonationMark; pauseAfter?: PauseMarker };
+
+  let units: Unit[];
+
+  if (visualizations.pausing) {
+    units = segmentWithPauses(text).map(({ text: segText, pauseAfter }) => ({
+      text: segText,
+      intonation: intonationFromPause(segText, pauseAfter),
+      pauseAfter,
+    }));
+  } else {
+    units = annotateIntonation(text).map((u) => ({ text: u.text, intonation: u.intonation }));
+  }
+
+  return units.map(({ text: unitText, intonation, pauseAfter }) => {
     const words = unitText.split(/\s+/).filter((w) => w.length > 0);
 
     const processedWords: ProcessedWord[] = words.map((word, index) => {
@@ -610,6 +640,6 @@ export function processText(text: string, visualizations: VisualizationSettings)
       };
     });
 
-    return { words: processedWords, intonation };
+    return { words: processedWords, intonation, pauseAfter };
   });
 }

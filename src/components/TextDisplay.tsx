@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { VisualizationSettings } from '../App';
-import { processText, ProcessedClause, ProcessedWord, IntonationMark } from '../utils/textProcessing';
+import { processText, ProcessedClause, ProcessedWord, IntonationMark, PauseMarker } from '../utils/textProcessing';
 
 type Props = {
   text: string;
@@ -41,6 +41,24 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
     }, 50);
     return () => clearInterval(id);
   }, [isScrolling, scrollSpeed]);
+
+  const PauseDisplay = ({ marker }: { marker: PauseMarker }) => {
+    const color =
+      marker === '///' ? 'text-gray-700' :
+      marker === '//'  ? 'text-gray-500' : 'text-gray-400';
+    return (
+      <span
+        className={`${color} font-mono select-none`}
+        style={{ fontSize: `${Math.round(fontSize * 0.6)}px`, verticalAlign: 'middle', margin: '0 0.2em' }}
+        aria-label={
+          marker === '///' ? 'utterance boundary' :
+          marker === '//'  ? 'major pause' : 'minor pause'
+        }
+      >
+        {marker}
+      </span>
+    );
+  };
 
   // Lucide icons render identically on all platforms — no Unicode emoji variation.
   // Both arrows appear as white icons inside a blue rounded box.
@@ -125,6 +143,7 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
                 {wIdx < clause.words.length - 1 && ' '}
               </span>
             ))}
+            {visualizations.pausing && clause.pauseAfter && <PauseDisplay marker={clause.pauseAfter} />}
             {visualizations.intonation && <IntonationArrow type={clause.intonation} />}
             {' '}
           </span>

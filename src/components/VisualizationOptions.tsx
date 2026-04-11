@@ -76,6 +76,18 @@ const OPTIONS: Option[] = [
       </div>
     ),
   },
+  {
+    key: 'pausing',
+    label: 'Pausing',
+    description: 'Pause markers at natural reading boundaries based on syntax',
+    example: (
+      <div className="mt-2 text-xs flex gap-4 font-mono">
+        <span className="text-gray-400">/ minor</span>
+        <span className="text-gray-500">// major</span>
+        <span className="text-gray-700">/// sentence</span>
+      </div>
+    ),
+  },
 ];
 
 export function VisualizationOptions({ visualizations, setVisualizations }: Props) {
