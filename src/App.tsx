@@ -9,7 +9,9 @@ export type VisualizationSettings = {
   intonation: boolean;
   sentenceStress: boolean;
   wordStress: boolean;
-  complexSounds: boolean;
+  soundsTh: boolean;
+  soundsS: boolean;
+  soundsEd: boolean;
   linking: boolean;
   pausing: boolean;
 };
@@ -26,7 +28,9 @@ export default function App() {
     intonation: true,
     sentenceStress: true,
     wordStress: true,
-    complexSounds: false,
+    soundsTh: false,
+    soundsS: false,
+    soundsEd: false,
     linking: false,
     pausing: false,
   });
@@ -83,7 +87,7 @@ export default function App() {
           <img src={`${import.meta.env.BASE_URL}jb_logo_small.jpg`} alt="Pronunciation Scaffolder logo" className="w-11 h-11 shrink-0" />
           <div>
             <h1 className="text-2xl font-bold leading-tight">Pronunciation Scaffolder</h1>
-            <p className="text-sm text-gray-500">Visualise how to read your script aloud</p>
+            <p className="text-sm text-gray-500">Visualizing how to read your script aloud</p>
           </div>
         </div>
 
@@ -141,6 +145,12 @@ export default function App() {
           <p className="text-xs text-gray-400 text-center sm:hidden">
             Tip: use landscape orientation on mobile for easier reading
           </p>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-4 border-t border-gray-100 text-center text-xs text-gray-400 space-y-0.5">
+          <p>John Blake &mdash; Aston University</p>
+          <p>Version 4.0 &mdash; 11 April 2026</p>
         </div>
       </div>
     </div>

@@ -104,7 +104,7 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
             : '';
 
           // Character-level rendering for complex sounds
-          if (visualizations.complexSounds && word.complexSounds.length > 0) {
+          if ((visualizations.soundsTh || visualizations.soundsS || visualizations.soundsEd) && word.complexSounds.length > 0) {
             return (
               <span key={sIdx} className={sylClass}>
                 {syl.text.split('').map((ch, chIdx) => {

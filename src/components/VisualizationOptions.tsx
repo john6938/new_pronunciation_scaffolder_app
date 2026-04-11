@@ -47,17 +47,37 @@ const OPTIONS: Option[] = [
     ),
   },
   {
-    key: 'complexSounds',
-    label: 'Complex Sounds',
-    description: 'Colour-coded backgrounds for th, -ed, and -s endings',
+    key: 'soundsTh',
+    label: 'Sounds — th',
+    description: 'Voiced /ð/ vs unvoiced /θ/ colour-coded on th spellings',
     example: (
-      <div className="mt-2 text-xs space-y-1">
-        <div className="flex gap-2 flex-wrap">
-          <span className="bg-blue-200 px-1 rounded">voiced</span>
-          <span className="bg-orange-200 px-1 rounded">unvoiced</span>
-          <span className="bg-purple-200 px-1 rounded">special</span>
-        </div>
-        <div className="text-gray-500">th · -ed · -s</div>
+      <div className="mt-2 text-xs flex gap-2 flex-wrap">
+        <span className="bg-blue-200 px-1 rounded">voiced /ð/ — <i>the, this</i></span>
+        <span className="bg-orange-200 px-1 rounded">unvoiced /θ/ — <i>think</i></span>
+      </div>
+    ),
+  },
+  {
+    key: 'soundsEd',
+    label: 'Sounds — -ed',
+    description: 'Three pronunciations of -ed endings colour-coded',
+    example: (
+      <div className="mt-2 text-xs flex gap-2 flex-wrap">
+        <span className="bg-blue-200 px-1 rounded">/d/ — <i>played</i></span>
+        <span className="bg-orange-200 px-1 rounded">/t/ — <i>walked</i></span>
+        <span className="bg-purple-200 px-1 rounded">/ɪd/ — <i>wanted</i></span>
+      </div>
+    ),
+  },
+  {
+    key: 'soundsS',
+    label: 'Sounds — -s',
+    description: 'Three pronunciations of -s endings colour-coded',
+    example: (
+      <div className="mt-2 text-xs flex gap-2 flex-wrap">
+        <span className="bg-blue-200 px-1 rounded">/z/ — <i>plays</i></span>
+        <span className="bg-orange-200 px-1 rounded">/s/ — <i>walks</i></span>
+        <span className="bg-purple-200 px-1 rounded">/ɪz/ — <i>watches</i></span>
       </div>
     ),
   },

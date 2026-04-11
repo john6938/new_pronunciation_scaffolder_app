@@ -72,33 +72,34 @@ export function Legend({ visualizations }: Props) {
           </div>
         )}
 
-        {visualizations.complexSounds && (
+        {visualizations.soundsTh && (
           <div>
-            <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Complex Sounds</h4>
-            <div className="space-y-2 text-xs">
-              <div>
-                <div className="font-medium mb-1">th</div>
-                <div className="flex gap-2 flex-wrap ml-2">
-                  <span className="bg-blue-200 px-1 rounded">voiced /ð/ — <i>the, this</i></span>
-                  <span className="bg-orange-200 px-1 rounded">unvoiced /θ/ — <i>think</i></span>
-                </div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">-ed</div>
-                <div className="flex gap-2 flex-wrap ml-2">
-                  <span className="bg-blue-200 px-1 rounded">voiced /d/ — <i>played</i></span>
-                  <span className="bg-orange-200 px-1 rounded">unvoiced /t/ — <i>walked</i></span>
-                  <span className="bg-purple-200 px-1 rounded">special /ɪd/ — <i>wanted</i></span>
-                </div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">-s</div>
-                <div className="flex gap-2 flex-wrap ml-2">
-                  <span className="bg-blue-200 px-1 rounded">voiced /z/ — <i>plays</i></span>
-                  <span className="bg-orange-200 px-1 rounded">unvoiced /s/ — <i>walks</i></span>
-                  <span className="bg-purple-200 px-1 rounded">special /ɪz/ — <i>watches</i></span>
-                </div>
-              </div>
+            <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Sounds — th</h4>
+            <div className="flex gap-2 flex-wrap text-xs">
+              <span className="bg-blue-200 px-1 rounded">voiced /ð/ — <i>the, this, that</i></span>
+              <span className="bg-orange-200 px-1 rounded">unvoiced /θ/ — <i>think, three</i></span>
+            </div>
+          </div>
+        )}
+
+        {visualizations.soundsEd && (
+          <div>
+            <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Sounds — -ed</h4>
+            <div className="flex gap-2 flex-wrap text-xs">
+              <span className="bg-blue-200 px-1 rounded">/d/ — <i>played</i></span>
+              <span className="bg-orange-200 px-1 rounded">/t/ — <i>walked</i></span>
+              <span className="bg-purple-200 px-1 rounded">/ɪd/ — <i>wanted</i></span>
+            </div>
+          </div>
+        )}
+
+        {visualizations.soundsS && (
+          <div>
+            <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Sounds — -s</h4>
+            <div className="flex gap-2 flex-wrap text-xs">
+              <span className="bg-blue-200 px-1 rounded">/z/ — <i>plays</i></span>
+              <span className="bg-orange-200 px-1 rounded">/s/ — <i>walks</i></span>
+              <span className="bg-purple-200 px-1 rounded">/ɪz/ — <i>watches</i></span>
             </div>
           </div>
         )}

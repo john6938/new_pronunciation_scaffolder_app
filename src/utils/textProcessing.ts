@@ -1,3 +1,4 @@
+import nlp from 'compromise';
 import { VisualizationSettings } from '../App';
 import { PauseMarker, segmentWithPauses } from './pauseAnnotation';
 export type { PauseMarker };
@@ -124,14 +125,101 @@ const VALID_ONSETS_2 = new Set([
 ]);
 const VALID_ONSETS_3 = new Set(['scr', 'spl', 'spr', 'str', 'thr', 'shr']);
 
-// Words with voiced 'th' /ð/
+// ─── th voicing classification ────────────────────────────────────────────────
+//
+// Three-layer system (higher layers always take precedence):
+//   Layer 1 — Authoritative lexicon: direct voiced-word lookup
+//   Layer 2 — Morphological rules: inflected forms + -the suffix pattern
+//   Layer 3 — Conservative default: unvoiced (correct for most content words)
+
+// Layer 1: authoritative voiced /ð/ lexicon
 const VOICED_TH_WORDS = new Set([
-  'the', 'this', 'that', 'these', 'those', 'they', 'them', 'their',
-  'there', 'then', 'though', 'thus', 'than', 'with', 'either',
-  'neither', 'whether', 'together', 'other', 'another', 'brother',
-  'mother', 'father', 'weather', 'feather', 'leather', 'bother',
-  'further', 'gather', 'rather', 'soothe', 'breathe', 'loathe', 'bathe',
+  // Core demonstratives and determiners
+  'the', 'this', 'that', 'these', 'those',
+  // Personal pronouns and possessives
+  'they', 'them', 'their', 'theirs', 'themselves',
+  // Contractions (apostrophes stripped by alpha normalisation)
+  'theyre', 'theyve', 'theyll', 'theyd', 'thats', 'theres',
+  // Archaic / literary pronouns
+  'thee', 'thou', 'thy', 'thine', 'thyself',
+  // Adverbs, conjunctions, connectives
+  'there', 'then', 'thence',
+  'though', 'although', 'than', 'thus',
+  // Discourse connectives with there- prefix (all voiced)
+  'thereby', 'therefore', 'thereafter', 'therein', 'thereof',
+  'thereon', 'thereto', 'therewith', 'therefrom', 'thereupon',
+  // Preposition
+  'with',
+  // Distributives / correlatives
+  'either', 'neither', 'whether',
+  // High-frequency relational words
+  'together', 'other', 'another',
+  // Kinship terms (all -ther, voiced)
+  'brother', 'mother', 'father',
+  // -ther words: voiced /ð/ in the suffix
+  'weather', 'feather', 'leather',
+  'bother', 'further', 'farther', 'furthest', 'farthest',
+  'gather', 'rather', 'lather', 'dither', 'wither',
+  'hither', 'smother', 'blather', 'slather', 'tether', 'nether',
+  // Verb–noun alternation pairs: verb forms (voiced) listed here
+  // counterparts: breath/breathe  bath/bathe  cloth/clothe  loath/loathe
+  'soothe', 'breathe', 'loathe', 'bathe', 'clothe',
+  'teethe', 'wreathe', 'sheathe', 'seethe', 'scathe', 'swathe',
+  // Other voiced-th content words
+  'smooth', 'lithe', 'writhe', 'scythe', 'lathe',
 ]);
+
+// Layer 2 exception: word ends in -the but th is unvoiced (rare)
+const UNVOICED_THE_EXCEPTIONS = new Set(['tithe']);
+
+/**
+ * Classify the /th/ voicing in a word.
+ * @param alpha  Lowercased, alphabetic-only form of the word.
+ *
+ * Layer 1 — Direct lexicon lookup (most reliable).
+ * Layer 2a — Morphological rule: words ending in -the are voiced verb/adj forms.
+ * Layer 2b — Inflection stripping: checks stem (and stem+e) against the lexicon.
+ * Layer 3  — Conservative default: unvoiced.
+ */
+function classifyThVoicing(alpha: string): 'voiced' | 'unvoiced' {
+  // Layer 1
+  if (VOICED_TH_WORDS.has(alpha)) return 'voiced';
+
+  // Layer 2a: -the ending → voiced (verb alternation / adjective pattern)
+  if (alpha.length > 3 && alpha.endsWith('the') && !UNVOICED_THE_EXCEPTIONS.has(alpha)) {
+    return 'voiced';
+  }
+
+  // Layer 2b: inflected forms — strip suffix, check stem (and silent-e restoration)
+  if (alpha.endsWith('ing') && alpha.length > 5) {
+    const stem = alpha.slice(0, -3);
+    if (VOICED_TH_WORDS.has(stem) || VOICED_TH_WORDS.has(stem + 'e')) return 'voiced';
+  }
+  if (alpha.endsWith('ed') && alpha.length > 4) {
+    const stem = alpha.slice(0, -2);
+    if (VOICED_TH_WORDS.has(stem) || VOICED_TH_WORDS.has(stem + 'e')) return 'voiced';
+  }
+  // -d (single) without prior -e: e.g. "soothed" already caught by -ed; keeps "they'd"→"they"
+  if (alpha.endsWith('d') && !alpha.endsWith('ed') && alpha.length > 3) {
+    const stem = alpha.slice(0, -1);
+    if (VOICED_TH_WORDS.has(stem)) return 'voiced';
+  }
+  // -s / -es: check stem only (no +e — prevents "baths"→"bathe" false positive)
+  if (alpha.endsWith('s') && alpha.length > 3) {
+    const stem = alpha.slice(0, -1);
+    if (VOICED_TH_WORDS.has(stem)) return 'voiced';
+  }
+  // Derivational suffixes: -ly, -ness, -er, -est
+  for (const sfx of ['ness', 'est', 'ly', 'er'] as const) {
+    if (alpha.endsWith(sfx) && alpha.length > sfx.length + 2) {
+      const stem = alpha.slice(0, -sfx.length);
+      if (VOICED_TH_WORDS.has(stem)) return 'voiced';
+    }
+  }
+
+  // Layer 3: conservative default
+  return 'unvoiced';
+}
 
 // ─── Syllabification ──────────────────────────────────────────────────────────
 
@@ -508,43 +596,98 @@ export function isSentenceStressed(word: string): boolean {
 
 // ─── Complex sounds ───────────────────────────────────────────────────────────
 
-export function findComplexSounds(word: string): ComplexSound[] {
+// Lexical -ed adjectives that are NOT past-tense verbs.
+// Each entry maps the bare lowercase form to its fixed -ed pronunciation.
+// 'special' = /ɪd/ (extra syllable), 'voiced' = /d/, 'unvoiced' = /t/
+const LEXICAL_ED_ADJECTIVES = new Map<string, ComplexSound['soundType']>([
+  // Pure adjectives (no corresponding modern verb) — always /ɪd/
+  ['wicked',  'special'],
+  ['naked',   'special'],
+  ['sacred',  'special'],
+  ['ragged',  'special'],
+  ['jagged',  'special'],
+  ['rugged',  'special'],
+  ['crabbed', 'special'],
+  ['crooked', 'special'],
+  // User-specified fixed pronunciations for dual-use forms
+  ['learned', 'voiced'],   // adj /lɜːnd/ → /d/
+  ['winged',  'voiced'],   // adj /wɪŋd/  → /d/
+  ['legged',  'voiced'],   // adj /lɛɡd/  → /d/
+  ['cursed',  'unvoiced'], // adj /kɜːst/ → /t/
+  ['cussed',  'unvoiced'], // adj /kʌst/  → /t/
+]);
+
+// Words where compromise reliably distinguishes adjective (#Adjective, → /ɪd/)
+// from past-tense verb (#PastTense, → standard phonological rule).
+const COMPROMISE_TRUSTED_ED = new Set(['aged', 'blessed', 'dogged', 'beloved']);
+
+// Non-verb words whose -ed ending should NOT be annotated.
+// These would otherwise be false positives of the morphological rule.
+const ED_BLOCKLIST = new Set(['hundred', 'kindred', 'hatred']);
+
+/** Apply the standard phonological rule for -ed past-tense verbs. */
+function classifyEdVerb(stem: string): ComplexSound['soundType'] {
+  if (/[td]$/.test(stem)) return 'special';                                         // /ɪd/
+  if (/[pkfsx]$/.test(stem) || stem.endsWith('sh') || stem.endsWith('ch')) return 'unvoiced'; // /t/
+  return 'voiced';                                                                   // /d/
+}
+
+export function findComplexSounds(
+  word: string,
+  enableTh: boolean,
+  enableS: boolean,
+  enableEd: boolean,
+  pastTenseWords?: Set<string>,
+): ComplexSound[] {
   const sounds: ComplexSound[] = [];
   const lower = word.toLowerCase();
   const alpha = lower.replace(/[^a-z]/g, '');
 
   // th sounds
-  let idx = 0;
-  while ((idx = lower.indexOf('th', idx)) !== -1) {
-    sounds.push({
-      type: 'th',
-      soundType: VOICED_TH_WORDS.has(alpha) ? 'voiced' : 'unvoiced',
-      start: idx,
-      end: idx + 2,
-    });
-    idx += 2;
+  if (enableTh) {
+    const voicing = classifyThVoicing(alpha);
+    let idx = 0;
+    while ((idx = lower.indexOf('th', idx)) !== -1) {
+      sounds.push({ type: 'th', soundType: voicing, start: idx, end: idx + 2 });
+      idx += 2;
+    }
   }
 
-  // -ed endings (not -eed, -ied as separate vowel sound)
-  if (lower.endsWith('ed') && !lower.endsWith('eed') && alpha.length > 3) {
-    const stem = alpha.slice(0, -2);
-    let soundType: ComplexSound['soundType'];
-    if (/[td]$/.test(stem)) {
-      soundType = 'special'; // /ɪd/ — extra syllable
-    } else if (/[pkfsx]$/.test(stem) || stem.endsWith('sh') || stem.endsWith('ch')) {
-      soundType = 'unvoiced'; // /t/
-    } else {
-      soundType = 'voiced'; // /d/
+  // -ed endings
+  // Use alpha (punctuation-stripped) for candidate detection so that words with trailing
+  // punctuation (e.g. "walked," "added,") are correctly identified.
+  // Use lower.lastIndexOf('ed') for the highlight position so it points into the original word.
+  // Priority order:
+  //   1. Hard-coded lexical adjectives (LEXICAL_ED_ADJECTIVES) — fixed soundType
+  //   2. Compromise-trusted adjectives — /ɪd/ when NOT seen as past-tense in this text
+  //   3. Standard past-tense verbs confirmed by compromise (or fallback if no POS data)
+  const edPos = lower.lastIndexOf('ed');
+  const isEdCandidate = enableEd && alpha.endsWith('ed') && !alpha.endsWith('eed') && alpha.length > 3 && edPos !== -1;
+  if (isEdCandidate) {
+    const lexicalType = LEXICAL_ED_ADJECTIVES.get(alpha);
+
+    if (lexicalType !== undefined) {
+      // Fixed lexical adjective pronunciation
+      sounds.push({ type: 'ed', soundType: lexicalType, start: edPos, end: edPos + 2 });
+    } else if (COMPROMISE_TRUSTED_ED.has(alpha) && !pastTenseWords?.has(alpha)) {
+      // Appears only as adjective in this text (compromise did not tag it #PastTense) → /ɪd/
+      sounds.push({ type: 'ed', soundType: 'special', start: edPos, end: edPos + 2 });
+    } else if (!ED_BLOCKLIST.has(alpha)) {
+      // Default: morphological rule — annotate any -ed not explicitly blocked.
+      // Main false positives (wicked, naked, etc.) are already handled by LEXICAL_ED_ADJECTIVES.
+      const stem = alpha.slice(0, -2);
+      sounds.push({ type: 'ed', soundType: classifyEdVerb(stem), start: edPos, end: edPos + 2 });
     }
-    sounds.push({ type: 'ed', soundType, start: word.length - 2, end: word.length });
   }
 
   // -s endings (plurals and 3rd-person singular)
+  // Use alpha for candidate detection to handle trailing punctuation (e.g. "plays,").
+  const sPos = lower.lastIndexOf('s');
   const skipS = new Set([
     'this', 'was', 'has', 'is', 'his', 'its', 'plus', 'thus',
     'us', 'bus', 'yes', 'news', 'less', 'class', 'dress', 'miss',
   ]);
-  if (lower.endsWith('s') && !lower.endsWith('ss') && alpha.length > 2 && !skipS.has(alpha)) {
+  if (enableS && alpha.endsWith('s') && !alpha.endsWith('ss') && alpha.length > 2 && !skipS.has(alpha) && sPos !== -1) {
     const stem = alpha.slice(0, -1);
     let soundType: ComplexSound['soundType'];
     if (/[sxz]$/.test(stem) || stem.endsWith('sh') || stem.endsWith('ch') || stem.endsWith('ge') || stem.endsWith('ce')) {
@@ -554,7 +697,7 @@ export function findComplexSounds(word: string): ComplexSound[] {
     } else {
       soundType = 'voiced'; // /z/
     }
-    sounds.push({ type: 's', soundType, start: word.length - 1, end: word.length });
+    sounds.push({ type: 's', soundType, start: sPos, end: sPos + 1 });
   }
 
   return sounds;
@@ -604,6 +747,16 @@ function intonationFromPause(segText: string, pauseAfter: PauseMarker | undefine
 }
 
 export function processText(text: string, visualizations: VisualizationSettings): ProcessedClause[] {
+  // Run compromise once on the full text to get past-tense tags.
+  // Used only for COMPROMISE_TRUSTED_ED words (aged, blessed, dogged, beloved) where
+  // the adjective and verb forms have different -ed pronunciations.
+  // General -ed detection now uses the morphological rule (Option B), not a compromise gate.
+  let pastTenseWords: Set<string> | undefined;
+  if (visualizations.soundsEd) {
+    const tagged = (nlp(text).match('#PastTense').out('array') as string[]);
+    pastTenseWords = new Set(tagged.map((w) => w.toLowerCase().replace(/[^a-z]/g, '')));
+  }
+
   // When pausing is enabled, use the pause-based segmentation.
   // Otherwise use the intonation-based segmentation.
   type Unit = { text: string; intonation: IntonationMark; pauseAfter?: PauseMarker };
@@ -632,7 +785,7 @@ export function processText(text: string, visualizations: VisualizationSettings)
           ? splitIntoSyllables(word)
           : [{ text: word, isPrimaryStress: false }],
         isSentenceStressed: visualizations.sentenceStress ? isSentenceStressed(word) : false,
-        complexSounds: visualizations.complexSounds ? findComplexSounds(word) : [],
+        complexSounds: findComplexSounds(word, visualizations.soundsTh, visualizations.soundsS, visualizations.soundsEd, pastTenseWords),
         linkingAfter:
           index < words.length - 1 && visualizations.linking
             ? getLinkingType(word, nextWord)
