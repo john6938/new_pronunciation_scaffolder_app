@@ -1,5 +1,20 @@
 import { useState } from 'react';
-import { HelpCircle, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { HelpCircle, X } from 'lucide-react';
+
+const SvgRising = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="13" x2="13" y2="3" />
+    <polyline points="7,3 13,3 13,9" />
+  </svg>
+);
+const SvgFalling = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="3" x2="13" y2="13" />
+    <polyline points="7,13 13,13 13,7" />
+  </svg>
+);
 import { VisualizationSettings } from '../App';
 
 type Props = { visualizations: VisualizationSettings };
@@ -37,11 +52,11 @@ export function Legend({ visualizations }: Props) {
             <h4 className="font-medium text-xs uppercase tracking-wide text-gray-500 mb-1">Intonation</h4>
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><TrendingUp size={13} strokeWidth={2.5} /></span>
+                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><SvgRising /></span>
                 <span>Rising — yes/no questions, non-final clauses &amp; list items</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><TrendingDown size={13} strokeWidth={2.5} /></span>
+                <span className="bg-blue-600 text-white rounded inline-flex items-center justify-center select-none" style={{ width: 18, height: 18 }}><SvgFalling /></span>
                 <span>Falling — statements, wh-questions, final clauses</span>
               </div>
               <div className="flex items-center gap-2 text-gray-400">

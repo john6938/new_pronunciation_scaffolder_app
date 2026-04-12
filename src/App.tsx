@@ -3,6 +3,7 @@ import { VisualizationOptions } from './components/VisualizationOptions';
 import { TextDisplay } from './components/TextDisplay';
 import { Controls } from './components/Controls';
 import { Legend } from './components/Legend';
+import { useSpeech } from './utils/useSpeech';
 import { Upload, Type } from 'lucide-react';
 
 export type VisualizationSettings = {
@@ -24,6 +25,7 @@ export default function App() {
   const [fontSize, setFontSize] = useState(28);
   const [scrollSpeed, setScrollSpeed] = useState(0);
   const [isScrolling, setIsScrolling] = useState(false);
+  const speech = useSpeech();
   const [visualizations, setVisualizations] = useState<VisualizationSettings>({
     intonation: true,
     sentenceStress: true,
@@ -65,6 +67,8 @@ export default function App() {
           isScrolling={isScrolling}
           setIsScrolling={setIsScrolling}
           onBack={handleBack}
+          text={scriptText}
+          speech={speech}
         />
         <TextDisplay
           text={scriptText}

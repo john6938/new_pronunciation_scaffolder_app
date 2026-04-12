@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
 import { VisualizationSettings } from '../App';
 import { processText, ProcessedClause, ProcessedWord, IntonationMark, PauseMarker } from '../utils/textProcessing';
 
@@ -61,19 +60,31 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
     );
   };
 
-  // Lucide icons render identically on all platforms — no Unicode emoji variation.
-  // Both arrows appear as white icons inside a blue rounded box.
+  // Custom SVG diagonal straight arrows — clean diagonal line with arrowhead.
   const IntonationArrow = ({ type }: { type: IntonationMark }) => {
     if (type === 'omit') return null;
     const iconSize = Math.round(fontSize * 0.6);
-    const Icon = type === 'rising' ? TrendingUp : TrendingDown;
+    const isRising = type === 'rising';
     return (
       <span
         className="bg-blue-600 text-white rounded select-none inline-flex items-center justify-center"
         style={{ width: iconSize + 6, height: iconSize + 6, verticalAlign: 'middle', marginLeft: '0.15em', flexShrink: 0 }}
-        aria-label={type === 'rising' ? 'rising intonation' : 'falling intonation'}
+        aria-label={isRising ? 'rising intonation' : 'falling intonation'}
       >
-        <Icon size={iconSize} strokeWidth={2.5} />
+        <svg width={iconSize} height={iconSize} viewBox="0 0 16 16" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {isRising ? (
+            <>
+              <line x1="3" y1="13" x2="13" y2="3" />
+              <polyline points="7,3 13,3 13,9" />
+            </>
+          ) : (
+            <>
+              <line x1="3" y1="3" x2="13" y2="13" />
+              <polyline points="7,13 13,13 13,7" />
+            </>
+          )}
+        </svg>
       </span>
     );
   };
@@ -154,6 +165,7 @@ export function TextDisplay({ text, visualizations, fontSize, scrollSpeed, isScr
       </span>
     );
   };
+
 
   return (
     <div
