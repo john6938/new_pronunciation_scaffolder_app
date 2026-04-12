@@ -99,7 +99,6 @@ export default function App() {
 
           {/* Script input */}
           <section>
-            <h2 className="text-base font-semibold text-gray-700 mb-3">Your Script</h2>
             <div className="flex gap-2 flex-wrap mb-3">
               <label className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white text-sm rounded-lg cursor-pointer hover:bg-blue-600 transition">
                 <Upload size={16} />
