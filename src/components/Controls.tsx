@@ -91,40 +91,42 @@ export function Controls({
         </button>
       </div>
 
-      {/* Scroll speed */}
-      <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-1.5 flex-1 min-w-[180px] max-w-xs">
-        <span className="text-xs text-gray-500 shrink-0">Autoscroll</span>
-        <input
-          type="range"
-          min="0"
-          max="10"
-          value={scrollSpeed}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setScrollSpeed(v);
-            if (v === 0) setIsScrolling(false);
-          }}
-          className="flex-1 accent-blue-500"
-        />
-        <span className="text-sm font-medium w-8 text-center text-gray-700">
-          {scrollSpeed === 0 ? 'Off' : `${scrollSpeed}×`}
-        </span>
-      </div>
+      {/* Scroll speed + Play grouped so they never separate on mobile */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-1.5 w-44">
+          <span className="text-xs text-gray-500 shrink-0">Autoscroll</span>
+          <input
+            type="range"
+            min="0"
+            max="10"
+            value={scrollSpeed}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setScrollSpeed(v);
+              if (v === 0) setIsScrolling(false);
+            }}
+            className="w-16 accent-blue-500"
+          />
+          <span className="text-sm font-medium w-8 text-center text-gray-700 shrink-0">
+            {scrollSpeed === 0 ? 'Off' : `${scrollSpeed}×`}
+          </span>
+        </div>
 
-      {/* Play / Pause scroll — only shown when speed > 0 */}
-      {scrollSpeed > 0 && (
-        <button
-          onClick={() => setIsScrolling(!isScrolling)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
-            isScrolling
-              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-              : 'bg-green-100 text-green-700 hover:bg-green-200'
-          }`}
-        >
-          {isScrolling ? <Pause size={16} /> : <Play size={16} />}
-          {isScrolling ? 'Pause' : 'Play'}
-        </button>
-      )}
+        {/* Play / Pause — only shown when speed > 0 */}
+        {scrollSpeed > 0 && (
+          <button
+            onClick={() => setIsScrolling(!isScrolling)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition shrink-0 ${
+              isScrolling
+                ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+            }`}
+          >
+            {isScrolling ? <Pause size={16} /> : <Play size={16} />}
+            {isScrolling ? 'Pause' : 'Play'}
+          </button>
+        )}
+      </div>
 
       {/* ── TTS divider ── */}
       <span className="hidden sm:block w-px h-6 bg-gray-300 shrink-0" aria-hidden />

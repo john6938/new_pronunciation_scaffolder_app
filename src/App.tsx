@@ -152,7 +152,7 @@ export default function App() {
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
-          <p>John Blake, Aston University. Version 4.0 updated 11 April 2026.</p>
+          <p>John Blake, Aston University. Version 4.0 updated 12 April 2026.</p>
         </div>
       </div>
     </div>
