@@ -28,6 +28,7 @@ export type SpeechSettings = {
   status: SpeechStatus;
   speak: (text: string) => void;
   pause: () => void;
+  resume: () => void;
   stop: () => void;
   cleanName: (name: string) => string;
   higherPitchNames: RegExp;
@@ -112,6 +113,11 @@ export function useSpeech(): SpeechSettings {
     setStatus('paused');
   }
 
+  function resume() {
+    window.speechSynthesis?.resume();
+    setStatus('speaking');
+  }
+
   function stop() {
     window.speechSynthesis?.cancel();
     setStatus('idle');
@@ -126,6 +132,7 @@ export function useSpeech(): SpeechSettings {
     status,
     speak,
     pause,
+    resume,
     stop,
     cleanName,
     higherPitchNames: HIGHER_PITCH_NAMES,

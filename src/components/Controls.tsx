@@ -55,7 +55,7 @@ export function Controls({
   speech,
 }: Props) {
   const { voices, selectedVoiceURI, setSelectedVoiceURI, pitch, setPitch, rate, setRate,
-    status, speak, pause, stop, cleanName, higherPitchNames } = speech;
+    status, speak, pause, resume, stop, cleanName, higherPitchNames } = speech;
 
   const pitchIsHigh = pitch >= 1.1;
   const pitchIsLow  = pitch <= 0.9;
@@ -196,23 +196,40 @@ export function Controls({
 
       <VoiceInfoTip />
 
-      {/* Listen / Pause / Stop */}
-      <button
-        onClick={() => {
-          if (status === 'idle') speak(text);
-          else if (status === 'speaking') pause();
-          else stop();
-        }}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
-          status === 'speaking' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
-          status === 'paused'   ? 'bg-red-100 text-red-700 hover:bg-red-200' :
-                                  'bg-blue-100 text-blue-700 hover:bg-blue-200'
-        }`}
-        aria-label={status === 'speaking' ? 'Pause' : status === 'paused' ? 'Stop' : 'Listen'}
-      >
-        {status === 'speaking' ? <Pause size={15} /> : status === 'paused' ? <Square size={15} /> : <Volume2 size={15} />}
-        {status === 'speaking' ? 'Pause' : status === 'paused' ? 'Stop' : 'Listen'}
-      </button>
+      {/* Listen / Pause / (Resume + Stop) */}
+      {status === 'paused' ? (
+        <>
+          <button
+            onClick={resume}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition bg-green-100 text-green-700 hover:bg-green-200"
+            aria-label="Resume"
+          >
+            <Play size={15} />
+            Resume
+          </button>
+          <button
+            onClick={stop}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition bg-red-100 text-red-700 hover:bg-red-200"
+            aria-label="Stop"
+          >
+            <Square size={15} />
+            Stop
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => status === 'idle' ? speak(text) : pause()}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+            status === 'speaking'
+              ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+          }`}
+          aria-label={status === 'speaking' ? 'Pause' : 'Listen'}
+        >
+          {status === 'speaking' ? <Pause size={15} /> : <Volume2 size={15} />}
+          {status === 'speaking' ? 'Pause' : 'Listen'}
+        </button>
+      )}
 
     </div>
   );
