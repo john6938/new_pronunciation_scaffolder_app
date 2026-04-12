@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ZoomIn, ZoomOut, Gauge, Play, Pause, Volume2, Square, Info } from 'lucide-react';
+import { ArrowLeft, ZoomIn, ZoomOut, Play, Pause, Volume2, Square, Info } from 'lucide-react';
 import { SpeechSettings } from '../utils/useSpeech';
 
 const TTS_NOTE = 'Voice and pitch choices vary with operating system. Pitch control works on iOS and desktop. On Android, try selecting a different voice.';
@@ -55,7 +55,7 @@ export function Controls({
   speech,
 }: Props) {
   const { voices, selectedVoiceURI, setSelectedVoiceURI, pitch, setPitch, rate, setRate,
-    isSpeaking, speak, stop, cleanName, higherPitchNames } = speech;
+    status, speak, pause, stop, cleanName, higherPitchNames } = speech;
 
   const pitchIsHigh = pitch >= 1.1;
   const pitchIsLow  = pitch <= 0.9;
@@ -196,18 +196,22 @@ export function Controls({
 
       <VoiceInfoTip />
 
-      {/* Listen / Stop */}
+      {/* Listen / Pause / Stop */}
       <button
-        onClick={() => isSpeaking ? stop() : speak(text)}
+        onClick={() => {
+          if (status === 'idle') speak(text);
+          else if (status === 'speaking') pause();
+          else stop();
+        }}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
-          isSpeaking
-            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+          status === 'speaking' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' :
+          status === 'paused'   ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                                  'bg-blue-100 text-blue-700 hover:bg-blue-200'
         }`}
-        aria-label={isSpeaking ? 'Stop listening' : 'Listen'}
+        aria-label={status === 'speaking' ? 'Pause' : status === 'paused' ? 'Stop' : 'Listen'}
       >
-        {isSpeaking ? <Square size={15} /> : <Volume2 size={15} />}
-        {isSpeaking ? 'Stop' : 'Listen'}
+        {status === 'speaking' ? <Pause size={15} /> : status === 'paused' ? <Square size={15} /> : <Volume2 size={15} />}
+        {status === 'speaking' ? 'Pause' : status === 'paused' ? 'Stop' : 'Listen'}
       </button>
 
     </div>

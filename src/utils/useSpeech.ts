@@ -15,6 +15,8 @@ function cleanName(name: string): string {
     .trim();
 }
 
+export type SpeechStatus = 'idle' | 'speaking' | 'paused';
+
 export type SpeechSettings = {
   voices: SpeechSynthesisVoice[];
   selectedVoiceURI: string;
@@ -23,8 +25,9 @@ export type SpeechSettings = {
   setPitch: (p: number) => void;
   rate: number;
   setRate: (r: number) => void;
-  isSpeaking: boolean;
+  status: SpeechStatus;
   speak: (text: string) => void;
+  pause: () => void;
   stop: () => void;
   cleanName: (name: string) => string;
   higherPitchNames: RegExp;
@@ -35,7 +38,7 @@ export function useSpeech(): SpeechSettings {
   const [selectedVoiceURI, setSelectedVoiceURI] = useState('');
   const [pitch, setPitch] = useState(1.0);
   const [rate, setRate] = useState(0.9);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [status, setStatus] = useState<SpeechStatus>('idle');
 
   // Use refs so speak() always sees the latest values without needing useCallback deps.
   const pitchRef = useRef(pitch);
@@ -97,16 +100,21 @@ export function useSpeech(): SpeechSettings {
     const voice = voicesRef.current.find((v) => v.voiceURI === selectedVoiceURIRef.current);
     if (voice) utt.voice = voice;
 
-    utt.onstart = () => setIsSpeaking(true);
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
+    utt.onstart = () => setStatus('speaking');
+    utt.onend = () => setStatus('idle');
+    utt.onerror = () => setStatus('idle');
 
     window.speechSynthesis.speak(utt);
   }
 
+  function pause() {
+    window.speechSynthesis?.pause();
+    setStatus('paused');
+  }
+
   function stop() {
     window.speechSynthesis?.cancel();
-    setIsSpeaking(false);
+    setStatus('idle');
   }
 
   return {
@@ -115,8 +123,9 @@ export function useSpeech(): SpeechSettings {
     setSelectedVoiceURI,
     pitch, setPitch,
     rate, setRate,
-    isSpeaking,
+    status,
     speak,
+    pause,
     stop,
     cleanName,
     higherPitchNames: HIGHER_PITCH_NAMES,
