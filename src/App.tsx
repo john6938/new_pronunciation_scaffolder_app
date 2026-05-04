@@ -4,7 +4,7 @@ import { TextDisplay } from './components/TextDisplay';
 import { Controls } from './components/Controls';
 import { Legend } from './components/Legend';
 import { useSpeech } from './utils/useSpeech';
-import { Upload, Type } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 export type VisualizationSettings = {
   intonation: boolean;
@@ -105,14 +105,7 @@ export default function App() {
                 Upload .txt
                 <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" />
               </label>
-              <button
-                onClick={() => (document.getElementById('script-input') as HTMLTextAreaElement)?.focus()}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition"
-              >
-                <Type size={16} />
-                Type below
-              </button>
-              <button
+<button
                 onClick={() => setScriptText(SAMPLE_TEXT)}
                 className="px-3 py-2 bg-purple-100 text-purple-700 text-sm rounded-lg hover:bg-purple-200 transition"
               >
@@ -152,7 +145,7 @@ export default function App() {
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
-          <p>John Blake, Aston University. Version 4.0 updated 12 April 2026.</p>
+          <p>John Blake, Aston University. Version 4.0.</p>
         </div>
       </div>
     </div>

@@ -136,7 +136,7 @@ export function Legend({ visualizations }: Props) {
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-2">
                 <span className="border-b-4 border-blue-500 px-1">word</span>
-                <span>Connect — final consonant links to next vowel</span>
+                <span>Connection — final consonant links to next vowel</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="border-b-4 border-green-500 px-1">word</span>
